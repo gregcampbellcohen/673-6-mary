@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <title>Congressional Districts of Virginia</title>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootswatch/4.5.2/cerulean/bootstrap.min.css" 
+    integrity="sha384-3fdgwJw17Bi87e1QQ4fsLn4rUFqWw//KU0g8TvV6quvahISRewev6/EocKNuJmEw" crossorigin="anonymous">
+  <style>
+    #map {
+      width: 100%;
+      height: 40vh;
+    }
+
+    #about {
+      max-height: 80vh;
+      overflow-y: scroll;
+    }
+
+    .borough {
+      fill: white;
+      stroke-width: 1px;
+      stroke: black;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .state {
+      vector-effect: non-scaling-stroke;
+    }
+
+    /* Small devices (landscape phones, 576px and up) */
+    @media (min-width: 576px) {}
+
+    /* Medium devices (tablets, 768px and up) */
+    @media (min-width: 768px) {
+      #map {
+        height: 60vh;
+      }
+    }
+
+    /* Large devices (desktops, 992px and up) */
+    @media (min-width: 992px) {
+
+      #map {
+        height: 80vh;
+      }
+    }
+
+    /* Extra large devices (large desktops, 1200px and up) */
+    @media (min-width: 1200px) {}
+
+    .state {
+      fill: none;
+      stroke: #114B5F;
+      stroke-width: 2;
+    }
+
+    .district {
+      fill: #E4FDE1;
+      stroke: #028090;
+    }
+
+    .district:hover {
+      fill: #456990;
+      stroke: #114B5F;
+      stroke-width: 2;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container-fluid">
+    <header class="row py-3 bg-dark text-white">
+      <div class="col mx-2">
+        <h1 class="h1">Virginian Congressional Districts</h1>
+      </div>
+    </header>
+
+    <section class="row bg-secondary">
+      <div class="col-12 col-md-7 col-lg-8 px-0">
+        <div id="map" class="bg-light position-relative"></div>
+      </div>
+      <aside id="about" class="col-12 col-md-5 col-lg-4 text-dark py-2">
+        <section>
+          <h2 class="h2 text-dark">About this map</h2>
+          <p>The 11 congressional districts in the Commonwealth of Virginia.</p>
+        </section>
+      </aside>
+    </section>
+    <footer class="row bg-dark text-white py-3">
+      <div class="col mx-2">
+        <ul class="list-unstyled">
+          <li>Author: Greg Campbell-Cohen</li>
+          <li>12/15/2020</li>
+        </ul>
+      </div>
+    </footer>
+  </div> <!-- end .container-fluid -->
+
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" 
+    integrity="sha256-4+XzXVhsDmqanXGHaHvgh1gMQKX40OUvDEBTu8JcmNs=" crossorigin="anonymous"></script>
+  </script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.5.4/umd/popper.min.js" 
+    integrity="sha512-7yA/d79yIhHPvcrSiB8S/7TyX0OxlccU8F/kuB8mHYjLlF1MInPbEohpoqfz0AILoq5hoD7lELZAYYHbyeEjag==" crossorigin="anonymous"></script>
+  </script> -->
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" 
+    integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+  </script>
+
+  <script src="https://d3js.org/d3.v6.min.js"></script> <!-- New version of D3 released September 2020-->
+  <script src="https://unpkg.com/topojson@3"></script>
+
+  <script>
+    
+
+    // request our data files and reference with variables
+    const stateGeoJson = d3.json('data/Virginia.geojson')
+    const districtTopoJson = d3.json('data/vadistricts.geojson')
+
+    // wait until data is loaded then send to draw map function
+    Promise.all([stateGeoJson, districtTopoJson]).then(drawMap);
+
+
+    // accepts the data as a parameter countiesData
+    function drawMap(data) {
+
+      // select the HTML element that will hold our map
+      const mapContainer = d3.select('#map')
+
+      // determine width and height of map from container
+      const width = mapContainer.node().offsetWidth - 60;
+      const height = mapContainer.node().offsetHeight - 60;
+
+      // create and append a new SVG element to the map div
+      const svg = mapContainer
+        .append('svg')
+        .attr('width', width) // provide width and height attributes
+        .attr('height', height)
+
+        // refer to different datasets
+        const stateData = data[0];
+        const districtsData = data[1];
+
+        console.log(districtsData)
+
+        const projection = d3.geoAlbersUsa()
+      .fitSize([width, height], stateData);
+
+      // declare a path generator using the projection
+      const path = d3.geoPath()
+        .projection(projection);
+
+      // Create  div for the tooltip and hide with opacity
+      const tooltip = d3.select('.container-fluid').append('div')
+        .attr('class', 'my-tooltip bg-warning text-white py-1 px-2 rounded position-absolute invisible');
+
+      // when mouse moves over the mapContainer
+      mapContainer
+        .on('mousemove', event => {
+        // update the position of the tooltip
+        // console.log(event)
+        tooltip.style('left', (event.pageX + 10) + 'px')
+          .style('top', (event.pageY - 30) + 'px');
+      }); 
+
+      // append a new g element
+      const districts = svg.append('g')
+        .selectAll('path')
+        .data(districtsData.features) // use the GeoJSON features
+        .join('path')  // join them to path elements
+        .attr('d', path)  // use our path generator to project them on the screen
+        .attr('class', 'district') // give each path element a class name of county
+
+      // applies event listeners to our polygons for user interaction
+      districts.on('mouseover', (event, d) => { // when mousing over an element
+        d3.select(event.currentTarget).classed('hover', true).raise(); // select it, add a class name, and bring to front
+        tooltip.classed('invisible', false).html(`District ${d.properties.NAME}`) // make tooltip visible and update info 
+      })
+      .on('mouseout', (event, d) => { // when mousing out of an element
+        d3.select(event.currentTarget).classed('hover', false) // remove the class from the polygon
+        tooltip.classed('invisible', true) // hide the element 
+      });
+
+      // append states to the SVG
+      svg.append('g') // append a group element to the svg
+        .selectAll('path') // select multiple paths (that don't exist yet)
+        .data(stateData.features) // use the feature data from the geojson
+        .join('path') // join the data to the now created path elements
+        .attr('d', path) // provide the d attribute for the SVG paths
+        .classed('state', true) // give each path element a class name of state
+
+      const zoom = d3.zoom()
+        // on zoom (many events fire this event like mousemove, wheel, dblclick, etc.)...
+        .on('zoom', (event) => {
+            svg
+            // select all paths in svg
+            .selectAll('path') 
+            // transform path based on event 
+            .attr('transform', event.transform)
+            // change stroke width on zoom
+            .attr("stroke-width", 1 / event.transform.k);
+
+          });
+
+      // Attach function to svg
+      svg.call(zoom)
+
+} // end of drawMap function
+  </script>
+</body>
+
+</html>
